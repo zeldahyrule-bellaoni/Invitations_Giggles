@@ -1,7 +1,7 @@
-// recruit-ladies-full.js
+// recruit-ladies-playwright.js
 module.exports = async function runStatsExtractor(page) {
   // -------------------------------
-  // Phase 1: Profile ID Extraction (No Club)
+  // Phase 1: Profile ID Extraction
   // -------------------------------
   console.log("🚀 Starting Phase 1: Profile ID Extraction (No Club)");
 
@@ -10,10 +10,7 @@ module.exports = async function runStatsExtractor(page) {
   const tierId = 1;
   let allProfiles = [];
 
-  await page.goto('https://v3.g.ladypopular.com', {
-    waitUntil: 'domcontentloaded',
-    timeout: 60000
-  });
+  await page.goto('https://v3.g.ladypopular.com', { waitUntil: 'domcontentloaded', timeout: 60000 });
   await page.waitForTimeout(4000);
 
   console.log(`🔍 Scanning pages ${startPage} → ${endPage}`);
@@ -25,40 +22,28 @@ module.exports = async function runStatsExtractor(page) {
       const profilesOnPage = await page.evaluate(async ({ currentPage, tierId }) => {
         const res = await fetch('/ajax/ranking/players.php', {
           method: 'POST',
-          body: new URLSearchParams({
-            action: 'getRanking',
-            page: currentPage.toString(),
-            tierId: tierId.toString()
-          }),
+          body: new URLSearchParams({ action: 'getRanking', page: currentPage.toString(), tierId: tierId.toString() }),
           credentials: 'same-origin'
         });
-
         const data = await res.json();
         if (!data.html) return [];
 
         const container = document.createElement('div');
         container.innerHTML = data.html;
-
         const rows = container.querySelectorAll('tr');
         const results = [];
 
         rows.forEach(row => {
           const profileLink = row.querySelector('a[href*="profile.php?id="]');
           const guildCell = row.querySelector('.ranking-player-guild');
-
           if (!profileLink || !guildCell) return;
-          if (guildCell.querySelector('a')) return; // Already in a club
+          if (guildCell.querySelector('a')) return;
 
           const idMatch = profileLink.getAttribute('href').match(/id=(\d+)/);
           if (!idMatch) return;
-
           const nameEl = row.querySelector('.player-avatar-name');
           const name = nameEl ? nameEl.textContent.trim() : 'Unknown';
-
-          results.push({
-            profileId: idMatch[1],
-            name
-          });
+          results.push({ profileId: idMatch[1], name });
         });
 
         return results;
@@ -66,7 +51,6 @@ module.exports = async function runStatsExtractor(page) {
 
       console.log(`   🎯 Found ${profilesOnPage.length} profiles without club`);
       allProfiles.push(...profilesOnPage);
-
     } catch (err) {
       console.log(`❌ Error on page ${currentPage}: ${err.message}`);
     }
@@ -76,14 +60,12 @@ module.exports = async function runStatsExtractor(page) {
 
   console.log("✅ Phase 1 Complete");
   console.log(`👭 Total profiles without club: ${allProfiles.length}`);
-  console.log("📋 Sample output:");
-  console.log(allProfiles.slice(0, 5));
+  console.log("📋 Sample output:", allProfiles.slice(0, 5));
 
   // -------------------------------
-  // Phase 2: Extract Lady IDs from Profile Pages
+  // Phase 2: Extract Lady IDs
   // -------------------------------
   console.log(`🚀 Starting Phase 2: Extract Lady IDs`);
-
   let allLadies = [];
 
   for (let i = 0; i < allProfiles.length; i++) {
@@ -91,45 +73,39 @@ module.exports = async function runStatsExtractor(page) {
     console.log(`📄 Visiting profile ${i + 1}/${allProfiles.length}: ${profile.name} (${profile.profileId})`);
 
     try {
-      const ladyId = await page.evaluate(async (profileId) => {
-        const profileUrl = `/profile.php?id=${profileId}`;
-        const res = await fetch(profileUrl, { credentials: 'same-origin' });
-        const html = await res.text();
+      const profileUrl = `https://v3.g.ladypopular.com/profile.php?id=${profile.profileId}`;
+      await page.goto(profileUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
+      await page.waitForTimeout(2000); // wait for img to load
 
-        const container = document.createElement('div');
-        container.innerHTML = html;
+      const imgSrc = await page.evaluate(() => {
+        const img = document.querySelector('img[name="0"]');
+        return img ? img.src : null;
+      });
 
-        const img = container.querySelector('img[name="0"]');
-        if (!img) return null;
+      if (!imgSrc) {
+        console.log(`⚠️ No avatar image found for ${profile.name} (${profile.profileId})`);
+        continue;
+      }
 
-        const imgSrc = img.getAttribute('src');
-
-        // Extract all numbers
-        const numbers = imgSrc.match(/\d+/g) || [];
-
-        // Pick first number >=5 digits and different from profileId
-        const ladyIdCandidate = numbers.find(num => num.length >= 5 && num !== profileId);
-
-        return ladyIdCandidate || null;
-      }, profile.profileId);
+      // Extract ladyId: first number >= 5 digits and not equal to profileId
+      const numbers = imgSrc.match(/\d+/g) || [];
+      const ladyId = numbers.find(num => num.length >= 5 && num !== profile.profileId);
 
       if (ladyId) {
         console.log(`   🆔 Found Lady ID: ${ladyId}`);
         allLadies.push({ name: profile.name, ladyId });
       } else {
-        console.log(`⚠️ Could not find Lady ID for ${profile.name} (${profile.profileId})`);
+        console.log(`⚠️ Could not determine Lady ID from image for ${profile.name} (${profile.profileId})`);
       }
-
     } catch (err) {
-      console.log(`❌ Error extracting Lady ID for ${profile.name} (${profile.profileId}): ${err.message}`);
+      console.log(`❌ Error processing profile ${profile.name} (${profile.profileId}): ${err.message}`);
     }
 
     await page.waitForTimeout(1500);
   }
 
   console.log(`✅ Phase 2 Complete. Total Lady IDs found: ${allLadies.length}`);
-  console.log("📋 Sample output:");
-  console.log(allLadies.slice(0, 5));
+  console.log("📋 Sample output:", allLadies.slice(0, 5));
 
   // -------------------------------
   // Phase 3: Sending Invites
@@ -148,30 +124,24 @@ module.exports = async function runStatsExtractor(page) {
     console.log(`📤 Sending invite ${i + 1}/${allLadies.length}`);
     console.log(`   👩 Name: ${lady.name}`);
     console.log(`   🆔 Lady ID: ${lady.ladyId}`);
-    console.log(`   🌐 Current page: ${page.url()}`);
+    console.log(`   🌐 Current page: ${await page.url()}`);
 
     try {
       const res = await page.evaluate(async ({ ladyId, message }) => {
         const response = await fetch('/ajax/guilds.php', {
           method: 'POST',
-          body: new URLSearchParams({
-            type: 'invite',
-            lady: ladyId,
-            message
-          }),
+          body: new URLSearchParams({ type: 'invite', lady: ladyId, message }),
           credentials: 'same-origin'
         });
         return await response.json();
       }, { ladyId: lady.ladyId, message: inviteMessage });
 
       console.log(`   📝 Response: ${JSON.stringify(res)}`);
-
       if (res.status === 1) {
         console.log(`✅ Invite sent to ${lady.name} (${lady.ladyId})`);
       } else {
         console.log(`⚠️ Failed to send invite to ${lady.name} (${lady.ladyId}): ${res.message || 'Unknown error'}`);
       }
-
     } catch (err) {
       console.log(`❌ Error sending invite to ${lady.name} (${lady.ladyId}): ${err.message}`);
     }
