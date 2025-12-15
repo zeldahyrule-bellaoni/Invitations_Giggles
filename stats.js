@@ -1,7 +1,7 @@
-// recruit-ladies-full-updated.js
-module.exports = async function runRecruiter(page) {
+// recruit-ladies-full.js
+module.exports = async function runStatsExtractor(page) {
   // -------------------------------
-  // Phase 1: Profile ID Extraction
+  // Phase 1: Profile ID Extraction (No Club)
   // -------------------------------
   console.log("🚀 Starting Phase 1: Profile ID Extraction (No Club)");
 
@@ -10,7 +10,6 @@ module.exports = async function runRecruiter(page) {
   const tierId = 1;
   let allProfiles = [];
 
-  // Ensure logged-in session
   await page.goto('https://v3.g.ladypopular.com', {
     waitUntil: 'domcontentloaded',
     timeout: 60000
@@ -48,7 +47,7 @@ module.exports = async function runRecruiter(page) {
           const guildCell = row.querySelector('.ranking-player-guild');
 
           if (!profileLink || !guildCell) return;
-          if (guildCell.querySelector('a')) return; // skip ladies already in a club
+          if (guildCell.querySelector('a')) return; // Already in a club
 
           const idMatch = profileLink.getAttribute('href').match(/id=(\d+)/);
           if (!idMatch) return;
@@ -65,7 +64,7 @@ module.exports = async function runRecruiter(page) {
         return results;
       }, { currentPage, tierId });
 
-      console.log(`   🎯 Found ${profilesOnPage.length} ladies without club`);
+      console.log(`   🎯 Found ${profilesOnPage.length} profiles without club`);
       allProfiles.push(...profilesOnPage);
 
     } catch (err) {
@@ -80,63 +79,66 @@ module.exports = async function runRecruiter(page) {
   console.log("📋 Sample output:");
   console.log(allProfiles.slice(0, 5));
 
-  if (allProfiles.length === 0) {
-    console.log("❌ No profiles to process. Exiting.");
-    return;
-  }
-
   // -------------------------------
-  // Phase 2: Convert Profile IDs → Lady IDs
+  // Phase 2: Extract Lady IDs from Profile Pages
   // -------------------------------
-  console.log(`🚀 Starting Phase 2: Obtaining Lady IDs from Profile IDs`);
+  console.log(`🚀 Starting Phase 2: Extract Lady IDs`);
 
   let allLadies = [];
 
   for (let i = 0; i < allProfiles.length; i++) {
     const profile = allProfiles[i];
-    console.log(`🔗 Visiting profile ${i + 1}/${allProfiles.length}: ${profile.name} (Profile ID: ${profile.profileId})`);
+    console.log(`📄 Visiting profile ${i + 1}/${allProfiles.length}: ${profile.name} (${profile.profileId})`);
 
     try {
-      await page.goto(`https://v3.g.ladypopular.com/profile.php?id=${profile.profileId}`, {
-        waitUntil: 'domcontentloaded'
-      });
-      await page.waitForTimeout(2000);
+      const ladyId = await page.evaluate(async (profileId) => {
+        const profileUrl = `/profile.php?id=${profileId}`;
+        const res = await fetch(profileUrl, { credentials: 'same-origin' });
+        const html = await res.text();
 
-      const ladyId = await page.evaluate(() => {
-        const img = document.querySelector('img[name="0"][alt="character"]');
+        const container = document.createElement('div');
+        container.innerHTML = html;
+
+        const img = container.querySelector('img[name="0"]');
         if (!img) return null;
-        const match = img.src.match(/_lady_(\d+)\.png$/);
-        return match ? match[1] : null;
-      });
 
-      if (!ladyId) {
-        console.log(`❌ Could not find Lady ID for ${profile.name} (Profile ID: ${profile.profileId})`);
-        continue;
+        const imgSrc = img.getAttribute('src');
+
+        // Extract all numbers
+        const numbers = imgSrc.match(/\d+/g) || [];
+
+        // Pick first number >=5 digits and different from profileId
+        const ladyIdCandidate = numbers.find(num => num.length >= 5 && num !== profileId);
+
+        return ladyIdCandidate || null;
+      }, profile.profileId);
+
+      if (ladyId) {
+        console.log(`   🆔 Found Lady ID: ${ladyId}`);
+        allLadies.push({ name: profile.name, ladyId });
+      } else {
+        console.log(`⚠️ Could not find Lady ID for ${profile.name} (${profile.profileId})`);
       }
 
-      console.log(`✅ Found Lady ID for ${profile.name}: ${ladyId}`);
-      allLadies.push({ name: profile.name, ladyId });
-
     } catch (err) {
-      console.log(`❌ Error fetching Lady ID for ${profile.name}: ${err.message}`);
+      console.log(`❌ Error extracting Lady ID for ${profile.name} (${profile.profileId}): ${err.message}`);
     }
 
-    await page.waitForTimeout(1000); // small delay
+    await page.waitForTimeout(1500);
   }
 
-  console.log("✅ Phase 2 Complete");
-  console.log(`👭 Total Lady IDs obtained: ${allLadies.length}`);
+  console.log(`✅ Phase 2 Complete. Total Lady IDs found: ${allLadies.length}`);
   console.log("📋 Sample output:");
   console.log(allLadies.slice(0, 5));
-
-  if (allLadies.length === 0) {
-    console.log("❌ No Lady IDs obtained. Exiting.");
-    return;
-  }
 
   // -------------------------------
   // Phase 3: Sending Invites
   // -------------------------------
+  if (allLadies.length === 0) {
+    console.log("❌ No ladies to invite. Phase 3 skipped.");
+    return;
+  }
+
   console.log(`🚀 Starting Phase 3: Sending invites to ${allLadies.length} ladies`);
 
   const inviteMessage = `Hello dear! 🌸 We’d be happy to welcome you to our club. You are active, strong, and would be a wonderful addition to our team. ➊ 💖 Donations are completely voluntary, and we are very flexible about them. ➋ ⚔️ We encourage members to improve their skills at their own pace and to participate in club battles, which we plan to hold on a fixed day every week. ➌ 👑 We currently have a Vice President position open and are looking to recruit committed members (including you, if you’re interested) who are willing to share responsibility in decision-making for club policies and implementation. ➍ 🤝 We truly value every member’s opinion. All members have an equal say in how the club operates, and decisions are made with collective consent, regardless of level or skill. ➎ 👭 Our current goal is to build a strong club made up of strong ladies with a true sense of loyalty and belonging. We would be delighted to have you join us. Happy gaming! 🌟`;
@@ -162,7 +164,7 @@ module.exports = async function runRecruiter(page) {
         return await response.json();
       }, { ladyId: lady.ladyId, message: inviteMessage });
 
-      console.log(`   📝 Response:`, res);
+      console.log(`   📝 Response: ${JSON.stringify(res)}`);
 
       if (res.status === 1) {
         console.log(`✅ Invite sent to ${lady.name} (${lady.ladyId})`);
@@ -174,7 +176,7 @@ module.exports = async function runRecruiter(page) {
       console.log(`❌ Error sending invite to ${lady.name} (${lady.ladyId}): ${err.message}`);
     }
 
-    await page.waitForTimeout(2000); // delay between invites
+    await page.waitForTimeout(2000);
   }
 
   console.log("✅ Phase 3 Complete. All invites processed.");
