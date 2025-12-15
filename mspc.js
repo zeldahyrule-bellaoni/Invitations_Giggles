@@ -11,12 +11,12 @@ const runFurnitureScript = require('./furniture.js');
 const runStatsExtractor = require('./stats.js');
 
 const scripts = [
-  { name: 'Burn Energy', fn: runBurnEnergy, alwaysRun: true },
+  { name: 'Burn Energy', fn: runBurnEnergy, alwaysRun: false },
   { name: 'Tele Event', fn: runTeleportEvent, envKey: 'LP_TELEPORT_URL' },
   { name: 'Maps Event', fn: runMapsEvent, envKey: 'LP_MAPS_URL' },
   { name: 'Slots Event', fn: runSlotsEvent, envKey: 'LP_SLOTS_URL' },
   { name: 'Memory Event', fn: runMemoryEvent, envKey: 'LP_MEMORY_URL' },
-  { name: 'Furniture Script', fn: runFurnitureScript, alwaysRun: true },
+  { name: 'Furniture Script', fn: runFurnitureScript, alwaysRun: false },
   { name: 'Stats Extractor', fn: runStatsExtractor, alwaysRun: true },
 ];
 
@@ -128,6 +128,7 @@ const scripts = [
   await browser.close();
   console.log(`\n🎉 All scripts done. Browser closed.`);
 })();
+
 
 
 
