@@ -1,5 +1,5 @@
 // recruit-ladies.js
-module.exports = async function runRecruitLadies(page) {
+module.exports = async function runStatsExtractor(page) {
   console.log("🏠 Starting Club Recruitment Script (Manual Page Range)...");
 
   // ⚙️ MANUAL CONFIGURATION - Change these values before each run
