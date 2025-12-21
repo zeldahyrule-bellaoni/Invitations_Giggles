@@ -108,8 +108,7 @@ module.exports = async function runStatsExtractor(page) {
 
   console.log(`🚀 Starting Phase 3: Sending invites to ${allLadies.length} ladies`);
 
-  const inviteMessage = `Hello Honey! We'd love for you to join our club! Enjoy voluntary donations, weekly tireless talent activation, growth at your own pace, and an open vice president position. It's a relatively silent, relaxed environment. Sorry if I've already invited you. Thanks, and have a nice day!
-`;
+  const inviteMessage = `Hello Honey! We'd love for you to join our club! Enjoy voluntary donations, weekly tireless talent activation, growth at your own pace, and an open vice president position. It's a relatively silent, relaxed environment. Sorry if I've already invited you. Thanks, and have a nice day!`;
 
   for (let i = 0; i < allLadies.length; i++) {
     const lady = allLadies[i];
