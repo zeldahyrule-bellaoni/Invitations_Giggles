@@ -6,8 +6,8 @@ module.exports = async function runStatsExtractor(page) {
   console.log("🚀 Starting Phase 1: Profile ID Extraction (No Club)");
 
   const startPage = 1; //change
-  const endPage = 144; //change
-  const tierId = 6; //change
+  const endPage = 87; //change
+  const tierId = 9; //change
   let allProfiles = [];
 
   await page.goto('https://v3.g.ladypopular.com', { waitUntil: 'domcontentloaded', timeout: 60000 });
@@ -108,7 +108,7 @@ module.exports = async function runStatsExtractor(page) {
 
   console.log(`🚀 Starting Phase 3: Sending invites to ${allLadies.length} ladies`);
 
-  const inviteMessage = `Hi lovely! I’d like to invite you to our newly formed club. Donations are voluntary, and we’ll have occasional club fights. Hope to see you in the club!`;
+  const inviteMessage = `Hi sweetie! We’d love to have you join our club. Donations are completely voluntary, and we have plenty of club fights where you can really showcase your strength. The only requirement is that you participate most of the club fights. Hope to see you with us! ✨`;
 
   for (let i = 0; i < allLadies.length; i++) {
     const lady = allLadies[i];
