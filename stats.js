@@ -34,12 +34,13 @@ module.exports = async function runStatsExtractor(page) {
         const results = [];
 
         rows.forEach(row => {
-          const profileLink = row.querySelector('a[href*="profile.php?id="]');
+          const profileLink = row.querySelector('.player-avatar a');
           const guildCell = row.querySelector('.ranking-player-guild');
           if (!profileLink || !guildCell) return;
-          if (guildCell.querySelector('a')) return;
+          if (guildCell.querySelector('a')) return; // if guild has <a>, player IS in a club
 
-          const idMatch = profileLink.getAttribute('href').match(/id=(\d+)/);
+          const href = profileLink.getAttribute('href');
+          const idMatch = href.match(/lady_id=(\d+)/);
           if (!idMatch) return;
           const nameEl = row.querySelector('.player-avatar-name');
           const name = nameEl ? nameEl.textContent.trim() : 'Unknown';
@@ -108,7 +109,7 @@ module.exports = async function runStatsExtractor(page) {
 
   console.log(`🚀 Starting Phase 3: Sending invites to ${allLadies.length} ladies`);
 
-  const inviteMessage = `Hi sweetie! We’d love to have you join our club. Donations are completely voluntary, and we are a peaceful club. Hope to see you with us! ✨`;
+  const inviteMessage = `Hi Pretty! We’d love to have you join our club. Donations are completely voluntary, and we are a growing and peaceful club. Hope to see you with us! ✨`;
 
   for (let i = 0; i < allLadies.length; i++) {
     const lady = allLadies[i];
